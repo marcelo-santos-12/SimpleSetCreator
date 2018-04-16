@@ -23,6 +23,9 @@ class Point2D(object):
     def __str__(self):
         return "({}, {})".format(self.x, self.y)
 
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
 class BBox(object):
     def __init__(self, p1, p2):
         assert len(p1) == 2 and len(p2) == 2
@@ -80,3 +83,6 @@ class BBox(object):
         tl = (min(self.tl.x, other.tl.x), min(self.tl.y, other.tl.y))
         br = (max(self.br.x, other.br.x), max(self.br.y, other.br.y))
         return BBox(tl, br)
+
+    def __eq__(self, other):
+        return self.tl == other.tl and self.br == other.br
