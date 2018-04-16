@@ -67,6 +67,10 @@ class BBox(object):
     def intersect(self, other):
         return (self & other) is not None
 
+    def contains(self, point):
+        return self.tl.x <= point.x and self.tl.y <= point.y and \
+                self.br.x >= point.x and self.br.y >= point.y
+
     def __str__(self):
         template = "BBox origin: {}; end: {}; width: {}; height: {}; center: {}"
         return template.format(self._tl, self._br, self.width, self.height, self.center)
