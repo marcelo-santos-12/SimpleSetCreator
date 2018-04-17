@@ -14,13 +14,13 @@ from SimpleSetCreator import geometry as geo
 
 class DatasetCreator:
 
-    def __init__(self, img_name, rect_sz=80, img_ext="png"):
+    def __init__(self, img_name, initial_rect_sz=80, img_ext="png"):
 
         self._image = np.array(Image.open(img_name), dtype=np.uint8)
         self.img_name = img_name.split("/")[-1].split(".")[0]
 
-        self._rect_sz = rect_sz
-        self._p_shift = rect_sz // 2
+        self._rect_sz = initial_rect_sz
+        self._p_shift = initial_rect_sz // 2
 
         self._img_ext = img_ext
 
@@ -29,7 +29,7 @@ class DatasetCreator:
         self._figure, self._axis = plt.subplots(1)
         self._canvas = self._figure.canvas
 
-        self._keyset = {"quit": "q", "undo": "u"}
+        self._keyset = {"quit": "q", "undo": "u", "inc_rect_sz": "i", "dec_rect_sz": "d"}
 
         self._canvas.mpl_connect("button_press_event", self._onclick)
         self._canvas.mpl_connect("key_press_event", self._keypress)
@@ -38,31 +38,39 @@ class DatasetCreator:
 
 
     def _undo(self):
+        if self._try_to_remove_last_rectangle() is None:
+            print("patches list empty!")
+
+
+    def _try_to_remove_last_rectangle(self):
         if self._patches:
+            tp_coords = self._patches[-1].get_xy()
+
             self._patches[-1].remove()
 
             self._patches.pop()
             self._canvas.draw()
 
-        else:
-            print("patches list empty!")
+            return tp_coords
+
+        return None
+
+
+    def _add_rectangle(self, coords):
+
+        obj = plt.Rectangle(coords, self._rect_sz, self._rect_sz, \
+                edgecolor="blue", linewidth=1.5, fill=False)
+
+        self._axis.add_patch(obj)
+        self._patches.append(obj)
+        self._canvas.draw()
 
 
     def _onclick(self, event):
 
         if event.dblclick:
-            coords = (event.xdata - self._p_shift, event.ydata - self._p_shift)
-
-            print(coords)
-
             if event.button == 1:
-
-                obj = plt.Rectangle(coords, self._rect_sz, self._rect_sz, \
-                        edgecolor="blue", linewidth=1.5, fill=False)
-
-                self._axis.add_patch(obj)
-                self._patches.append(obj)
-                self._canvas.draw()
+                self._add_rectangle((event.xdata - self._p_shift, event.ydata - self._p_shift))
 
         else:
             pass  # Do nothing
@@ -75,6 +83,22 @@ class DatasetCreator:
 
         elif event.key == self._keyset["undo"]:
             self._undo()
+
+        elif event.key == self._keyset["inc_rect_sz"]:
+            self._rect_sz += 2
+            self._p_shift = self._rect_sz // 2
+
+            tp_coords = self._try_to_remove_last_rectangle()
+            if tp_coords is not None:
+                self._add_rectangle(tp_coords)
+
+        elif event.key == self._keyset["dec_rect_sz"]:
+            self._rect_sz -= 2
+            self._p_shift = self._rect_sz // 2
+
+            tp_coords = self._try_to_remove_last_rectangle()
+            if tp_coords is not None:
+                self._add_rectangle(tp_coords)
 
         else:
             print('Press "q" to finish the program.')
@@ -119,4 +143,4 @@ if __name__ == "__main__":
     if args["image_extension"]:
         i_ext = args["image_extension"]
 
-    creator = DatasetCreator(i_name, rect_sz=60, img_ext=i_ext)
+    creator = DatasetCreator(i_name, initial_rect_sz=60, img_ext=i_ext)
