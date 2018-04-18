@@ -5,6 +5,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+import tempfile
 import argparse
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -13,9 +15,22 @@ import numpy as np
 from matplotlib.widgets import RectangleSelector, Cursor
 from SimpleSetCreator import geometry as geo
 
+
+def get_random_file_name(extension="png"):
+    random_name = tempfile.NamedTemporaryFile(prefix="", \
+            suffix=".{}".format(extension), dir=".").name
+    random_name = os.path.split(random_name)[-1]
+    return random_name
+
+
+def check_dir(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+
 class DatasetCreator:
 
-    def __init__(self, img_name, img_ext="png", output_folder="."):
+    def __init__(self, img_name, sample_size=64, img_ext="png", output_folder="."):
 
         self._image = np.array(Image.open(img_name), dtype=np.uint8)
 
@@ -24,6 +39,8 @@ class DatasetCreator:
         self._neg_out_dir = "{}/{}/negatives".format(output_folder, img_name)
 
         self._img_ext = img_ext
+
+        self._sample_sz = sample_size
 
         self._patches = []
 
@@ -102,19 +119,25 @@ class DatasetCreator:
     def _create_dataset(self):
 
         bounds = [(obj.get_bbox().bounds) for obj in self._patches]
-        bboxes = [geo.BBox((x, y), (x+width, y+height)) for (x, y, width, height) in bounds]
+        bboxes = [geo.BBox((x, y), (x+width, y+height)) \
+                for (x, y, width, height) in bounds]
+
+        self._create_positive_samples(bboxes)
+
+
+    def _create_positive_samples(self, bboxes):
+
+        file_path = "{}/{}"
+        check_dir(self._pos_out_dir)
 
         for box in bboxes:
             p1 = box.tl
             p2 = box.br
-            croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
+            croped = Image.fromarray(self._image[int(p1.y):int(p2.y), \
+                    int(p1.x):int(p2.x), :])
 
-            plt.figure()
-            plt.imshow(croped)
-            plt.show()
-
-        print(self._pos_out_dir)
-        print(self._neg_out_dir)
+            tmp_name = get_random_file_name(extension=self._img_ext)
+            croped.save(file_path.format(self._pos_out_dir, tmp_name))
 
 
 if __name__ == "__main__":
@@ -129,11 +152,15 @@ if __name__ == "__main__":
     ap.add_argument("-o", "--output", required=False, \
             help="The folder where the positive and negative samples will be stored")
 
+    ap.add_argument("-ss", "--sample_size", required=False, \
+            help="The size of the resulting samples")
+
     args = vars(ap.parse_args())
 
     i_name = args["image"]
     o_name = "samples"
     i_ext = "png"
+    s_sz = "64"
 
     if args["image_extension"]:
         i_ext = args["image_extension"]
@@ -141,4 +168,8 @@ if __name__ == "__main__":
     if args["output"]:
         o_name = args["output"]
 
-    creator = DatasetCreator(i_name, img_ext=i_ext, output_folder=o_name)
+    if args["sample_size"]:
+        s_sz = args["sample_size"]
+
+    creator = DatasetCreator(i_name, sampĺe_size=s_sz, img_ext=i_ext, \
+            output_folder=o_name)
