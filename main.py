@@ -10,29 +10,30 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 
+from matplotlib.widgets import RectangleSelector, Cursor
 from SimpleSetCreator import geometry as geo
 
 class DatasetCreator:
 
-    def __init__(self, img_name, initial_rect_sz=80, img_ext="png"):
+    def __init__(self, img_name, img_ext="png"):
 
         self._image = np.array(Image.open(img_name), dtype=np.uint8)
         self.img_name = img_name.split("/")[-1].split(".")[0]
-
-        self._rect_sz = initial_rect_sz
-        self._p_shift = initial_rect_sz // 2
 
         self._img_ext = img_ext
 
         self._patches = []
 
         self._figure, self._axis = plt.subplots(1)
-        self._canvas = self._figure.canvas
 
-        self._keyset = {"quit": "q", "undo": "u", "inc_rect_sz": "i", "dec_rect_sz": "d"}
+        self._keyset = {"quit": "q", "undo": "u"}
 
-        self._canvas.mpl_connect("button_press_event", self._onclick)
-        self._canvas.mpl_connect("key_press_event", self._keypress)
+        self._figure.canvas.mpl_connect("key_press_event", self._keypress)
+
+        self._rs = RectangleSelector(self._axis, self._line_select, drawtype="box", \
+                useblit=True, button=[1], minspanx=5, minspany=5, spancoords="pixels", \
+                interactive=False)
+        self._cursor = Cursor(self._axis, useblit=True, color="red", linewidth=1)
 
         self._run_gui()
 
@@ -44,36 +45,34 @@ class DatasetCreator:
 
     def _try_to_remove_last_rectangle(self):
         if self._patches:
-            tp_coords = self._patches[-1].get_xy()
+            x0, y0, width, height = self._patches[-1].get_bbox().bounds
+            tp_coords = (x0 + width // 2, y0 + height // 2)
 
             self._patches[-1].remove()
 
             self._patches.pop()
-            self._canvas.draw()
+            self._figure.canvas.draw()
 
             return tp_coords
 
         return None
 
 
-    def _add_rectangle(self, coords):
+    def _add_rectangle(self, x1, y1, x2, y2):
 
-        obj = plt.Rectangle(coords, self._rect_sz, self._rect_sz, \
+        obj = plt.Rectangle((x1, y1), x2-x1, y2-y1, \
                 edgecolor="blue", linewidth=1.5, fill=False)
 
         self._axis.add_patch(obj)
         self._patches.append(obj)
-        self._canvas.draw()
+        self._figure.canvas.draw()
 
 
-    def _onclick(self, event):
+    def _line_select(self, eclick, erelease):
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
 
-        if event.dblclick:
-            if event.button == 1:
-                self._add_rectangle((event.xdata - self._p_shift, event.ydata - self._p_shift))
-
-        else:
-            pass  # Do nothing
+        self._add_rectangle(x1, y1, x2, y2)
 
 
     def _keypress(self, event):
@@ -83,22 +82,6 @@ class DatasetCreator:
 
         elif event.key == self._keyset["undo"]:
             self._undo()
-
-        elif event.key == self._keyset["inc_rect_sz"]:
-            self._rect_sz += 2
-            self._p_shift = self._rect_sz // 2
-
-            tp_coords = self._try_to_remove_last_rectangle()
-            if tp_coords is not None:
-                self._add_rectangle(tp_coords)
-
-        elif event.key == self._keyset["dec_rect_sz"]:
-            self._rect_sz -= 2
-            self._p_shift = self._rect_sz // 2
-
-            tp_coords = self._try_to_remove_last_rectangle()
-            if tp_coords is not None:
-                self._add_rectangle(tp_coords)
 
         else:
             print('Press "q" to finish the program.')
@@ -111,12 +94,10 @@ class DatasetCreator:
 
     def _create_dataset(self):
 
-        tp_coords = [(p.get_xy()) for p in self._patches]
-        bboxes = [geo.BBox((x, y), \
-                (x+self._rect_sz, y+self._rect_sz)) for (x, y) in tp_coords]
+        bounds = [(obj.get_bbox().bounds) for obj in self._patches]
+        bboxes = [geo.BBox((x, y), (x+width, y+height)) for (x, y, width, height) in bounds]
 
         for box in bboxes:
-            print(box)
             p1 = box.tl
             p2 = box.br
             croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
@@ -143,4 +124,4 @@ if __name__ == "__main__":
     if args["image_extension"]:
         i_ext = args["image_extension"]
 
-    creator = DatasetCreator(i_name, initial_rect_sz=60, img_ext=i_ext)
+    creator = DatasetCreator(i_name, img_ext=i_ext)
