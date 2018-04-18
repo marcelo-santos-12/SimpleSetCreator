@@ -15,10 +15,13 @@ from SimpleSetCreator import geometry as geo
 
 class DatasetCreator:
 
-    def __init__(self, img_name, img_ext="png"):
+    def __init__(self, img_name, img_ext="png", output_folder="."):
 
         self._image = np.array(Image.open(img_name), dtype=np.uint8)
-        self.img_name = img_name.split("/")[-1].split(".")[0]
+
+        img_name = img_name.split("/")[-1].split(".")[0]
+        self._pos_out_dir = "{}/{}/positives".format(output_folder, img_name)
+        self._neg_out_dir = "{}/{}/negatives".format(output_folder, img_name)
 
         self._img_ext = img_ext
 
@@ -27,6 +30,7 @@ class DatasetCreator:
         self._figure, self._axis = plt.subplots(1)
 
         self._keyset = {"quit": "q", "undo": "u"}
+        self._modifiers = {"shift", "control"}
 
         self._figure.canvas.mpl_connect("key_press_event", self._keypress)
 
@@ -83,6 +87,9 @@ class DatasetCreator:
         elif event.key == self._keyset["undo"]:
             self._undo()
 
+        elif event.key in self._modifiers:
+            pass
+
         else:
             print('Press "q" to finish the program.')
 
@@ -106,6 +113,9 @@ class DatasetCreator:
             plt.imshow(croped)
             plt.show()
 
+        print(self._pos_out_dir)
+        print(self._neg_out_dir)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -116,12 +126,19 @@ if __name__ == "__main__":
     ap.add_argument("-ie", "--image_extension", required=False, \
             help="The extension type of the output images")
 
+    ap.add_argument("-o", "--output", required=False, \
+            help="The folder where the positive and negative samples will be stored")
+
     args = vars(ap.parse_args())
 
     i_name = args["image"]
+    o_name = "samples"
     i_ext = "png"
 
     if args["image_extension"]:
         i_ext = args["image_extension"]
 
-    creator = DatasetCreator(i_name, img_ext=i_ext)
+    if args["output"]:
+        o_name = args["output"]
+
+    creator = DatasetCreator(i_name, img_ext=i_ext, output_folder=o_name)
