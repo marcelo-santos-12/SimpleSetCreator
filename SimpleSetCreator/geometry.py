@@ -20,6 +20,9 @@ class Point2D(object):
     def coords(self):
         return (self._x, self._y)
 
+    def resize(self, factor):
+        return Point2D(self._x*factor, self._y*factor)
+
     def __str__(self):
         return "({}, {})".format(self.x, self.y)
 
@@ -70,6 +73,9 @@ class BBox(object):
     def contains(self, point):
         return self.tl.x <= point.x and self.tl.y <= point.y and \
                 self.br.x >= point.x and self.br.y >= point.y
+
+    def resize(self, factor):
+        return BBox(self._tl.resize(factor).coords, self._br.resize(factor).coords)
 
     def __str__(self):
         template = "BBox origin: {}; end: {}; width: {}; height: {}; center: {}"

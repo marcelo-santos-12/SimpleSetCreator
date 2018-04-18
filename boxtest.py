@@ -19,6 +19,8 @@ if __name__ == '__main__':
     box4 = box1 | box2
     print('OU lógico: ', box4)
 
+    print("BBox 4 redimensionada: ", box4.resize(0.5))
+
     p = geo.Point2D(2, 3.5)
 
     print("Ponto: ", p)
