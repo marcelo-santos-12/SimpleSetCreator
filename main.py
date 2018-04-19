@@ -8,9 +8,8 @@ from __future__ import print_function
 import os
 import tempfile
 import argparse
-from PIL import Image
+import cv2
 import matplotlib.pyplot as plt
-import numpy as np
 
 from matplotlib.widgets import RectangleSelector, Cursor
 from SimpleSetCreator import geometry as geo
@@ -32,7 +31,7 @@ class DatasetCreator:
 
     def __init__(self, img_name, sample_size=64, img_ext="png", output_folder="."):
 
-        self._image = np.array(Image.open(img_name), dtype=np.uint8)
+        self._image = cv2.imread(img_name)
 
         img_name = img_name.split("/")[-1].split(".")[0]
         self._pos_out_dir = "{}/{}/positives".format(output_folder, img_name)
@@ -112,7 +111,7 @@ class DatasetCreator:
 
 
     def _run_gui(self):
-        self._axis.imshow(self._image)
+        self._axis.imshow(cv2.cvtColor(self._image, cv2.COLOR_BGR2RGB))
         plt.show()
 
 
@@ -123,21 +122,72 @@ class DatasetCreator:
                 for (x, y, width, height) in bounds]
 
         self._create_positive_samples(bboxes)
+        self._create_negative_samples(bboxes)
 
 
     def _create_positive_samples(self, bboxes):
 
         file_path = "{}/{}"
         check_dir(self._pos_out_dir)
+        final_sz = (self._sample_sz, self._sample_sz)
 
         for box in bboxes:
             p1 = box.tl
             p2 = box.br
-            croped = Image.fromarray(self._image[int(p1.y):int(p2.y), \
-                    int(p1.x):int(p2.x), :])
+            croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
+            resized = cv2.resize(croped, final_sz, interpolation=cv2.INTER_AREA)
 
             tmp_name = get_random_file_name(extension=self._img_ext)
-            croped.save(file_path.format(self._pos_out_dir, tmp_name))
+            cv2.imwrite(file_path.format(self._pos_out_dir, tmp_name), resized)
+
+
+    def _create_negative_samples(self, bboxes):
+
+        file_path = "{}/{}"
+        check_dir(self._neg_out_dir)
+
+        pyramid = []
+        pos_boxes = []
+
+        pyramid.append(cv2.pyrUp(self._image))
+        pos_boxes.append([b.resize(2) for b in bboxes])
+
+        img_copy = self._image.copy()
+        pyramid.append(img_copy)
+        pos_boxes.append(b for b in bboxes)
+
+        for i in range(4):
+            img_copy = cv2.pyrDown(img_copy)
+            pyramid.append(img_copy)
+            pos_boxes.append([b.resize(1/(2**i)) for b in bboxes])
+
+        for (scaled, p_boxes) in zip(pyramid, pos_boxes):
+
+            for prob_b in self._create_boxes(scaled.shape[:2], p_boxes):
+                tl = prob_b.tl
+                br = prob_b.br
+
+                croped = scaled[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
+                tmp_name = get_random_file_name(extension=self._img_ext)
+                cv2.imwrite(file_path.format(self._neg_out_dir, tmp_name), croped)
+
+
+    def _create_boxes(self, img_dims, pos_boxes):
+        boxes = []
+
+        for y in range(0, img_dims[0], self._sample_sz // 2):
+            for x in range(0, img_dims[1], self._sample_sz // 2):
+                b = geo.BBox((x, y), (x+self._sample_sz, y+self._sample_sz))
+
+                valid = True
+                for p_b in pos_boxes:
+                    if p_b.intersect(b):
+                        valid = False
+
+                if valid is True:
+                    boxes.append(b)
+
+        return boxes
 
 
 if __name__ == "__main__":
@@ -152,7 +202,7 @@ if __name__ == "__main__":
     ap.add_argument("-o", "--output", required=False, \
             help="The folder where the positive and negative samples will be stored")
 
-    ap.add_argument("-ss", "--sample_size", required=False, \
+    ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
     args = vars(ap.parse_args())
@@ -160,7 +210,7 @@ if __name__ == "__main__":
     i_name = args["image"]
     o_name = "samples"
     i_ext = "png"
-    s_sz = "64"
+    s_sz = 64
 
     if args["image_extension"]:
         i_ext = args["image_extension"]
@@ -171,5 +221,4 @@ if __name__ == "__main__":
     if args["sample_size"]:
         s_sz = args["sample_size"]
 
-    creator = DatasetCreator(i_name, sampĺe_size=s_sz, img_ext=i_ext, \
-            output_folder=o_name)
+    creator = DatasetCreator(i_name, sample_size=s_sz, img_ext=i_ext, output_folder=o_name)
