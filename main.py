@@ -186,11 +186,12 @@ class DatasetCreator:
     def _create_boxes(self, img_dims, pos_boxes):
         boxes = []
 
-        for y in range(0, img_dims[0], self._sample_sz):
-            for x in range(0, img_dims[1], self._sample_sz):
+        for y in range(0, img_dims[0]-self._sample_sz, self._sample_sz):
+            for x in range(0, img_dims[1]-self._sample_sz, self._sample_sz):
                 b = geo.BBox((x, y), (x+self._sample_sz, y+self._sample_sz))
 
                 valid = True
+
                 for p_b in pos_boxes:
                     if p_b.intersect(b):
                         valid = False
