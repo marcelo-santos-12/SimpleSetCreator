@@ -29,7 +29,8 @@ def check_dir(dir_path):
 
 class DatasetCreator:
 
-    def __init__(self, img_name, sample_size=64, img_ext="png", output_folder="."):
+    def __init__(self, img_name, sample_size=64, img_ext="png", gen_pos=True, \
+            gen_neg=True, output_folder="."):
 
         self._image = cv2.imread(img_name)
 
@@ -40,6 +41,9 @@ class DatasetCreator:
         self._img_ext = img_ext
 
         self._sample_sz = sample_size
+
+        self._gen_pos = gen_pos
+        self._gen_neg = gen_neg
 
         self._patches = []
 
@@ -121,52 +125,62 @@ class DatasetCreator:
         bboxes = [geo.BBox((x, y), (x+width, y+height)) \
                 for (x, y, width, height) in bounds]
 
-        self._create_positive_samples(bboxes)
-        self._create_negative_samples(bboxes)
+        if self._gen_pos:
+            self._create_positive_samples(bboxes)
+        if self._gen_neg:
+            self._create_negative_samples(bboxes)
 
 
     def _create_positive_samples(self, bboxes):
 
-        file_path = "{}/{}"
         check_dir(self._pos_out_dir)
-        final_sz = (self._sample_sz, self._sample_sz)
+
+        rot_mats = []
+        rot_mats.append(cv2.getRotationMatrix2D( \
+                (self._sample_sz // 2, self._sample_sz // 2), 90, 1.0))
+        rot_mats.append(cv2.getRotationMatrix2D( \
+                (self._sample_sz // 2, self._sample_sz // 2), 180, 1.0))
+        rot_mats.append(cv2.getRotationMatrix2D( \
+                (self._sample_sz // 2, self._sample_sz // 2), 270, 1.0))
 
         for box in bboxes:
             p1 = box.tl
             p2 = box.br
-            croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
-            resized = cv2.resize(croped, final_sz, interpolation=cv2.INTER_AREA)
 
-            tmp_name = get_random_file_name(extension=self._img_ext)
-            cv2.imwrite(file_path.format(self._pos_out_dir, tmp_name), resized)
+            imgs = []
+            croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
+            imgs.append(cv2.resize(croped, (self._sample_sz, self._sample_sz), \
+                    interpolation=cv2.INTER_AREA))
+            imgs.append(cv2.flip(imgs[0], 1))
+
+            for img in imgs:
+                tmp_name = get_random_file_name(extension=self._img_ext)
+                cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img)
+
+                for r_mat in rot_mats:
+                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    rotated = cv2.warpAffine(img, r_mat, (self._sample_sz, self._sample_sz))
+                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
+
+                    resized = cv2.pyrUp(cv2.pyrDown(rotated))
+                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), resized)
 
 
     def _create_negative_samples(self, bboxes):
 
-        file_path = "{}/{}"
         check_dir(self._neg_out_dir)
 
-        pyramid = []
-        pos_boxes = []
+        img_res = cv2.pyrDown(cv2.pyrDown(self._image))
+        boxes_res = [b.resize(1/4) for b in bboxes]
 
-        img_copy = self._image.copy()
-        pyramid.append(img_copy)
-        pos_boxes.append(list(bboxes))
+        for prob_b in self._create_boxes(img_res.shape[:2], boxes_res):
+            tl = prob_b.tl
+            br = prob_b.br
 
-        for i in range(1, 4):
-            img_copy = cv2.pyrDown(img_copy)
-            pyramid.append(img_copy)
-            pos_boxes.append([b.resize(1/(2**i)) for b in bboxes])
-
-        for (scaled, p_boxes) in zip(pyramid, pos_boxes):
-
-            for prob_b in self._create_boxes(scaled.shape[:2], p_boxes):
-                tl = prob_b.tl
-                br = prob_b.br
-
-                croped = scaled[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
-                tmp_name = get_random_file_name(extension=self._img_ext)
-                cv2.imwrite(file_path.format(self._neg_out_dir, tmp_name), croped)
+            croped = img_res[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
+            tmp_name = get_random_file_name(extension=self._img_ext)
+            cv2.imwrite("{}/{}".format(self._neg_out_dir, tmp_name), croped)
 
 
     def _create_boxes(self, img_dims, pos_boxes):
@@ -202,12 +216,20 @@ if __name__ == "__main__":
     ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
+    ap.add_argument("-gp", "--generate_positives", required=False, nargs="?", const=True,\
+            type=bool, help="Generate the positive samples.")
+
+    ap.add_argument("-gn", "--generate_negatives", required=False, nargs="?", const=True,\
+            type=bool, help="Generate the negative samples.")
+
     args = vars(ap.parse_args())
 
     i_name = args["image"]
     o_name = "samples"
     i_ext = "png"
     s_sz = 64
+    g_pos = True
+    g_neg = True
 
     if args["image_extension"]:
         i_ext = args["image_extension"]
@@ -218,4 +240,11 @@ if __name__ == "__main__":
     if args["sample_size"]:
         s_sz = args["sample_size"]
 
-    creator = DatasetCreator(i_name, sample_size=s_sz, img_ext=i_ext, output_folder=o_name)
+    if args["generate_positives"]:
+        g_pos = args["generate_positives"]
+
+    if args["generate_negatives"]:
+        g_neg = args["generate_negatives"]
+
+    creator = DatasetCreator(i_name, sample_size=s_sz, img_ext=i_ext, \
+            gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
