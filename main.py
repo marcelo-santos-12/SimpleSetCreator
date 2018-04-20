@@ -149,14 +149,11 @@ class DatasetCreator:
         pyramid = []
         pos_boxes = []
 
-        pyramid.append(cv2.pyrUp(self._image))
-        pos_boxes.append([b.resize(2) for b in bboxes])
-
         img_copy = self._image.copy()
         pyramid.append(img_copy)
-        pos_boxes.append(b for b in bboxes)
+        pos_boxes.append(list(bboxes))
 
-        for i in range(4):
+        for i in range(1, 4):
             img_copy = cv2.pyrDown(img_copy)
             pyramid.append(img_copy)
             pos_boxes.append([b.resize(1/(2**i)) for b in bboxes])
@@ -175,8 +172,8 @@ class DatasetCreator:
     def _create_boxes(self, img_dims, pos_boxes):
         boxes = []
 
-        for y in range(0, img_dims[0], self._sample_sz // 2):
-            for x in range(0, img_dims[1], self._sample_sz // 2):
+        for y in range(0, img_dims[0], self._sample_sz):
+            for x in range(0, img_dims[1], self._sample_sz):
                 b = geo.BBox((x, y), (x+self._sample_sz, y+self._sample_sz))
 
                 valid = True
