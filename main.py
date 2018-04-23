@@ -34,9 +34,8 @@ class DatasetCreator:
 
         self._image = cv2.imread(img_name)
 
-        img_name = img_name.split("/")[-1].split(".")[0]
-        self._pos_out_dir = "{}/{}/positives".format(output_folder, img_name)
-        self._neg_out_dir = "{}/{}/negatives".format(output_folder, img_name)
+        self._pos_out_dir = "{}/positives".format(output_folder)
+        self._neg_out_dir = "{}/negatives".format(output_folder)
 
         self._img_ext = img_ext
 
