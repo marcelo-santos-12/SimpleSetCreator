@@ -204,8 +204,8 @@ class DatasetCreator:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("-i", "--image", required=True, \
-            help="Path to the image")
+    ap.add_argument("-i", "--input", required=True, \
+            help="Path to the directory of images")
 
     ap.add_argument("-ie", "--image_extension", required=False, \
             help="The extension type of the output images")
@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
     args = vars(ap.parse_args())
 
-    i_name = args["image"]
+    i_name = args["input"]
     o_name = "samples"
     i_ext = "png"
     s_sz = 64
