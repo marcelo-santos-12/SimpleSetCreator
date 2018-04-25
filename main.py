@@ -8,6 +8,7 @@ from __future__ import print_function
 import os
 import tempfile
 import argparse
+import glob
 import cv2
 import matplotlib.pyplot as plt
 
@@ -216,11 +217,11 @@ if __name__ == "__main__":
     ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
-    ap.add_argument("-gp", "--generate_positives", required=False, nargs="?", const=True,\
-            type=bool, help="Generate the positive samples.")
+    ap.add_argument("-np", "--no_positives", required=False, nargs="?", const=True,\
+            type=bool, help="Don't generate the positive samples.")
 
-    ap.add_argument("-gn", "--generate_negatives", required=False, nargs="?", const=True,\
-            type=bool, help="Generate the negative samples.")
+    ap.add_argument("-nn", "--no_negatives", required=False, nargs="?", const=True,\
+            type=bool, help="Don't generate the negative samples.")
 
     args = vars(ap.parse_args())
 
@@ -240,11 +241,20 @@ if __name__ == "__main__":
     if args["sample_size"]:
         s_sz = args["sample_size"]
 
-    if args["generate_positives"]:
-        g_pos = args["generate_positives"]
+    if args["no_positives"]:
+        g_pos = False
 
-    if args["generate_negatives"]:
-        g_neg = args["generate_negatives"]
+    if args["no_negatives"]:
+        g_neg = False
 
-    creator = DatasetCreator(i_name, sample_size=s_sz, img_ext=i_ext, \
+    print(g_neg)
+    print(g_pos)
+
+    template = "{}/*.{}".format(i_name, i_ext)
+    print(template)
+    files = glob.glob(template)
+
+    for f in files:
+        print("Processing file: {}".format(f))
+        creator = DatasetCreator(f, sample_size=s_sz, img_ext=i_ext, \
             gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
