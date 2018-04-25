@@ -247,14 +247,12 @@ if __name__ == "__main__":
     if args["no_negatives"]:
         g_neg = False
 
-    print(g_neg)
-    print(g_pos)
-
     template = "{}/*.{}".format(i_name, i_ext)
-    print(template)
-    files = glob.glob(template)
 
-    for f in files:
-        print("Processing file: {}".format(f))
+    files = glob.glob(template)
+    n_files = len(files)
+
+    for i, f in enumerate(files):
+        print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         creator = DatasetCreator(f, sample_size=s_sz, img_ext=i_ext, \
             gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
