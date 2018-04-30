@@ -49,8 +49,10 @@ class DatasetCreator:
 
         self._figure, self._axis = plt.subplots(1)
 
-        self._keyset = {"quit": "q", "undo": "u"}
+        self._keyset = {"quit": "q", "undo": "u", "process": "p", "help": "h"}
         self._modifiers = {"shift", "control"}
+
+        self._should_quit = False
 
         self._figure.canvas.mpl_connect("key_press_event", self._keypress)
 
@@ -60,6 +62,11 @@ class DatasetCreator:
         self._cursor = Cursor(self._axis, useblit=True, color="red", linewidth=1)
 
         self._run_gui()
+
+
+    @property
+    def should_quit(self):
+        return self._should_quit
 
 
     def _undo(self):
@@ -100,18 +107,29 @@ class DatasetCreator:
 
 
     def _keypress(self, event):
-        if event.key == self._keyset["quit"]:
+        if event.key == self._keyset["process"]:
             self._create_dataset()
+            plt.close()
+
+        if event.key == self._keyset["quit"]:
+            self._should_quit = True
             plt.close()
 
         elif event.key == self._keyset["undo"]:
             self._undo()
 
+        elif event.key == self._keyset["help"]:
+            print("Commands:")
+            print("\th -- show help message.")
+            print("\tp -- process the image.")
+            print("\tu -- undo last selection.")
+            print("\tq -- terminate the program.")
+
         elif event.key in self._modifiers:
             pass
 
         else:
-            print('Press "q" to finish the program.')
+            print('Press "h" for help.')
 
 
     def _run_gui(self):
@@ -256,3 +274,7 @@ if __name__ == "__main__":
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         creator = DatasetCreator(f, sample_size=s_sz, img_ext=i_ext, \
             gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
+
+        if creator.should_quit:
+            print("Terminating...")
+            break
