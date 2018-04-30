@@ -13,7 +13,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from matplotlib.widgets import RectangleSelector, Cursor
-from SimpleSetCreator import geometry as geo
+import geometry as geo
 
 
 def get_random_file_name(extension="png"):
