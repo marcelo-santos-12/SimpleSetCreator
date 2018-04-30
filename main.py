@@ -111,7 +111,7 @@ class DatasetCreator:
             self._create_dataset()
             plt.close()
 
-        if event.key == self._keyset["quit"]:
+        elif event.key == self._keyset["quit"]:
             self._should_quit = True
             plt.close()
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     template = "{}/*.{}".format(i_name, i_ext)
 
-    files = glob.glob(template)
+    files = sorted(glob.glob(template), key=os.path.getmtime)
     n_files = len(files)
 
     for i, f in enumerate(files):
