@@ -125,6 +125,7 @@ class DatasetCreator:
             print("Commands:")
             print("\th -- show help message.")
             print("\tp -- process the image.")
+            print("\tn -- skip the image processing without terminating the program.")
             print("\tu -- undo last selection.")
             print("\tq -- terminate the program.")
 
