@@ -49,7 +49,7 @@ class DatasetCreator:
 
         self._figure, self._axis = plt.subplots(1)
 
-        self._keyset = {"quit": "q", "undo": "u", "process": "p", "help": "h"}
+        self._keyset = {"quit": "q", "undo": "u", "process": "p", "next": "n", "help": "h"}
         self._modifiers = {"shift", "control"}
 
         self._should_quit = False
@@ -117,6 +117,9 @@ class DatasetCreator:
 
         elif event.key == self._keyset["undo"]:
             self._undo()
+
+        elif event.key == self._keyset["next"]:
+            plt.close()
 
         elif event.key == self._keyset["help"]:
             print("Commands:")
