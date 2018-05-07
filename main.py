@@ -30,10 +30,10 @@ def check_dir(dir_path):
 
 class DatasetCreator:
 
-    def __init__(self, img_name, sample_size=64, img_ext="png", gen_pos=True, \
+    def __init__(self, img, sample_size=64, img_ext="png", gen_pos=True, \
             gen_neg=True, output_folder="."):
 
-        self._image = cv2.imread(img_name)
+        self._image = img
 
         self._pos_out_dir = "{}/positives".format(output_folder)
         self._neg_out_dir = "{}/negatives".format(output_folder)
@@ -226,7 +226,10 @@ if __name__ == "__main__":
     ap.add_argument("-i", "--input", required=True, \
             help="Path to the directory of images")
 
-    ap.add_argument("-ie", "--image_extension", required=False, \
+    ap.add_argument("-ie", "--input_extension", required=False, \
+            help="The extension type of the input images")
+
+    ap.add_argument("-oe", "--output_extension", required=False, \
             help="The extension type of the output images")
 
     ap.add_argument("-o", "--output", required=False, \
@@ -246,12 +249,16 @@ if __name__ == "__main__":
     i_name = args["input"]
     o_name = "samples"
     i_ext = "png"
+    o_ext = "png"
     s_sz = 64
     g_pos = True
     g_neg = True
 
-    if args["image_extension"]:
-        i_ext = args["image_extension"]
+    if args["input_extension"]:
+        i_ext = args["input_extension"]
+
+    if args["output_extension"]:
+        o_ext = args["output_extension"]
 
     if args["output"]:
         o_name = args["output"]
@@ -266,13 +273,15 @@ if __name__ == "__main__":
         g_neg = False
 
     template = "{}/*.{}".format(i_name, i_ext)
+    print(template)
 
     files = sorted(glob.glob(template), key=os.path.getmtime)
     n_files = len(files)
 
     for i, f in enumerate(files):
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
-        creator = DatasetCreator(f, sample_size=s_sz, img_ext=i_ext, \
+        image = cv2.imread(f)
+        creator = DatasetCreator(image, sample_size=s_sz, img_ext=o_ext, \
             gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
 
         if creator.should_quit:
