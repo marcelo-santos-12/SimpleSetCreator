@@ -30,8 +30,7 @@ def check_dir(dir_path):
 
 class DatasetCreator:
 
-    def __init__(self, img, sample_size=64, img_ext="png", gen_pos=True, \
-            gen_neg=True, output_folder="."):
+    def __init__(self, img, sample_size=64, img_ext="png", output_folder="."):
 
         self._image = img
 
@@ -42,14 +41,12 @@ class DatasetCreator:
 
         self._sample_sz = sample_size
 
-        self._gen_pos = gen_pos
-        self._gen_neg = gen_neg
-
         self._patches = []
 
         self._figure, self._axis = plt.subplots(1)
 
-        self._keyset = {"quit": "q", "undo": "u", "process": "p", "next": "n", "help": "h"}
+        self._keyset = {"quit": "q", "undo": "u", "skip": "s", "help": "h", \
+                "process_all": "a", "process_positives": "p", "process_negatives": "n"}
         self._modifiers = {"shift", "control"}
 
         self._should_quit = False
@@ -107,8 +104,16 @@ class DatasetCreator:
 
 
     def _keypress(self, event):
-        if event.key == self._keyset["process"]:
-            self._create_dataset()
+        if event.key == self._keyset["process_all"]:
+            self._create_dataset(True, True)
+            plt.close()
+
+        elif event.key == self._keyset["process_positives"]:
+            self._create_dataset(True, False)
+            plt.close()
+
+        elif event.key == self._keyset["process_negatives"]:
+            self._create_dataset(False, True)
             plt.close()
 
         elif event.key == self._keyset["quit"]:
@@ -118,14 +123,16 @@ class DatasetCreator:
         elif event.key == self._keyset["undo"]:
             self._undo()
 
-        elif event.key == self._keyset["next"]:
+        elif event.key == self._keyset["skip"]:
             plt.close()
 
         elif event.key == self._keyset["help"]:
             print("Commands:")
             print("\th -- show help message.")
-            print("\tp -- process the image.")
-            print("\tn -- skip the image processing without terminating the program.")
+            print("\ta -- process positive and negative samples.")
+            print("\tp -- process positive samples.")
+            print("\tn -- process negative samples.")
+            print("\ts -- skip the image processing without terminating the program.")
             print("\tu -- undo last selection.")
             print("\tq -- terminate the program.")
 
@@ -141,15 +148,15 @@ class DatasetCreator:
         plt.show()
 
 
-    def _create_dataset(self):
+    def _create_dataset(self, gen_pos, gen_neg):
 
         bounds = [(obj.get_bbox().bounds) for obj in self._patches]
         bboxes = [geo.BBox((x, y), (x+width, y+height)) \
                 for (x, y, width, height) in bounds]
 
-        if self._gen_pos:
+        if gen_pos:
             self._create_positive_samples(bboxes)
-        if self._gen_neg:
+        if gen_neg:
             self._create_negative_samples(bboxes)
 
 
@@ -242,12 +249,6 @@ if __name__ == "__main__":
     ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
-    ap.add_argument("-np", "--no_positives", required=False, nargs="?", const=True,\
-            type=bool, help="Don't generate the positive samples.")
-
-    ap.add_argument("-nn", "--no_negatives", required=False, nargs="?", const=True,\
-            type=bool, help="Don't generate the negative samples.")
-
     args = vars(ap.parse_args())
 
     i_name = args["input"]
@@ -255,8 +256,6 @@ if __name__ == "__main__":
     i_ext = "png"
     o_ext = "png"
     s_sz = 64
-    g_pos = True
-    g_neg = True
 
     if args["input_extension"]:
         i_ext = args["input_extension"]
@@ -270,23 +269,19 @@ if __name__ == "__main__":
     if args["sample_size"]:
         s_sz = args["sample_size"]
 
-    if args["no_positives"]:
-        g_pos = False
-
-    if args["no_negatives"]:
-        g_neg = False
-
     template = "{}/*.{}".format(i_name, i_ext)
     print(template)
 
     files = sorted(glob.glob(template), key=os.path.getmtime)
     n_files = len(files)
 
+    plt.rcParams["keymap.save"] = ""
+
     for i, f in enumerate(files):
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
         creator = DatasetCreator(image, sample_size=s_sz, img_ext=o_ext, \
-            gen_pos=g_pos, gen_neg=g_neg, output_folder=o_name)
+            output_folder=o_name)
 
         if creator.should_quit:
             print("Terminating...")
