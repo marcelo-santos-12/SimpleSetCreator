@@ -6,26 +6,16 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import tempfile
 import argparse
 import glob
 import cv2
+
 import matplotlib.pyplot as plt
 
 from matplotlib.widgets import RectangleSelector, Cursor
+
 import geometry as geo
-
-
-def get_random_file_name(extension="png"):
-    random_name = tempfile.NamedTemporaryFile(prefix="", \
-            suffix=".{}".format(extension), dir=".").name
-    random_name = os.path.split(random_name)[-1]
-    return random_name
-
-
-def check_dir(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+import utils
 
 
 class DatasetCreator:
@@ -162,7 +152,7 @@ class DatasetCreator:
 
     def _create_positive_samples(self, bboxes):
 
-        check_dir(self._pos_out_dir)
+        utils.check_dir(self._pos_out_dir)
 
         rot_mats = []
         rot_mats.append(cv2.getRotationMatrix2D( \
@@ -183,22 +173,22 @@ class DatasetCreator:
             imgs.append(cv2.flip(imgs[0], 1))
 
             for img in imgs:
-                tmp_name = get_random_file_name(extension=self._img_ext)
+                tmp_name = utils.get_random_file_name(extension=self._img_ext)
                 cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img)
 
                 for r_mat in rot_mats:
-                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
                     rotated = cv2.warpAffine(img, r_mat, (self._sample_sz, self._sample_sz))
                     cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
 
                     resized = cv2.pyrUp(cv2.pyrDown(rotated))
-                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
                     cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), resized)
 
 
     def _create_negative_samples(self, bboxes):
 
-        check_dir(self._neg_out_dir)
+        utils.check_dir(self._neg_out_dir)
 
         img_res = cv2.pyrDown(cv2.pyrDown(self._image))
         boxes_res = [b.resize(1/4) for b in bboxes]
@@ -208,7 +198,7 @@ class DatasetCreator:
             br = prob_b.br
 
             croped = img_res[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
-            tmp_name = get_random_file_name(extension=self._img_ext)
+            tmp_name = utils.get_random_file_name(extension=self._img_ext)
             cv2.imwrite("{}/{}".format(self._neg_out_dir, tmp_name), croped)
 
 

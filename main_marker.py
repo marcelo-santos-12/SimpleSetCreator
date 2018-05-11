@@ -6,47 +6,33 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import tempfile
 import argparse
 import glob
 import cv2
+
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from matplotlib.widgets import RectangleSelector, Cursor
+
 import geometry as geo
+import utils
 
 
-def get_random_file_name(extension="png"):
-    random_name = tempfile.NamedTemporaryFile(prefix="", \
-            suffix=".{}".format(extension), dir=".").name
-    random_name = os.path.split(random_name)[-1]
-    return random_name
+class ImageMarker:
 
-
-def check_dir(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
-
-class DatasetCreator:
-
-    def __init__(self, img, sample_size=64, img_ext="png", output_folder="."):
+    def __init__(self, img, img_ext="png", output_folder="."):
 
         self._image = img
 
         self._pos_out_dir = "{}/positives".format(output_folder)
         self._neg_out_dir = "{}/negatives".format(output_folder)
 
-        self._img_ext = img_ext
-
-        self._sample_sz = sample_size
-
         self._patches = []
 
         self._figure, self._axis = plt.subplots(1)
 
-        self._keyset = {"quit": "q", "undo": "u", "skip": "s", "help": "h", \
-                "process_all": "a", "process_positives": "p", "process_negatives": "n"}
+        self._keyset = {"quit": "q", "undo": "u", "skip": "s", "help": "h", "process": "p"}
         self._modifiers = {"shift", "control"}
 
         self._should_quit = False
@@ -104,16 +90,8 @@ class DatasetCreator:
 
 
     def _keypress(self, event):
-        if event.key == self._keyset["process_all"]:
-            self._create_dataset(True, True)
-            plt.close()
-
-        elif event.key == self._keyset["process_positives"]:
-            self._create_dataset(True, False)
-            plt.close()
-
-        elif event.key == self._keyset["process_negatives"]:
-            self._create_dataset(False, True)
+        if event.key == self._keyset["process"]:
+            self._create_csv()
             plt.close()
 
         elif event.key == self._keyset["quit"]:
@@ -129,9 +107,7 @@ class DatasetCreator:
         elif event.key == self._keyset["help"]:
             print("Commands:")
             print("\th -- show help message.")
-            print("\ta -- process positive and negative samples.")
-            print("\tp -- process positive samples.")
-            print("\tn -- process negative samples.")
+            print("\tp -- process image.")
             print("\ts -- skip the image processing without terminating the program.")
             print("\tu -- undo last selection.")
             print("\tq -- terminate the program.")
@@ -148,21 +124,37 @@ class DatasetCreator:
         plt.show()
 
 
-    def _create_dataset(self, gen_pos, gen_neg):
+    def _create_csv(self):
 
         bounds = [(obj.get_bbox().bounds) for obj in self._patches]
-        bboxes = [geo.BBox((x, y), (x+width, y+height)) \
-                for (x, y, width, height) in bounds]
 
-        if gen_pos:
-            self._create_positive_samples(bboxes)
-        if gen_neg:
-            self._create_negative_samples(bboxes)
+        x1s, y1s, x2s, y2s = _create_lists(bounds)
+
+        raw_data = {"x_1": x1s, "y_1": y1s, "x_2": x2s, "y_2": y2s}
+        df = pd.DataFrame(raw_data, columns=["x_1", "y_1", "x_2", "y_2", ])
+
+        ou_file = "{}/{}.csv".format(o_name, i+1, time_block)
+        df.to_csv(ou_file, index=False)
+
+    
+    def _create_lists(self, bounds):
+        x1s = []
+        y1s = []
+        x2s = []
+        y2s = []
+
+        for (x, y, width, height) in bounds:
+            x1s.append(x)
+            y1s.append(y)
+            x2s.append(x+width)
+            y2s.append(y+height)
+
+        return x1s, y1s, x2s, y2s
 
 
     def _create_positive_samples(self, bboxes):
 
-        check_dir(self._pos_out_dir)
+        utils.check_dir(self._pos_out_dir)
 
         rot_mats = []
         rot_mats.append(cv2.getRotationMatrix2D( \
@@ -183,22 +175,22 @@ class DatasetCreator:
             imgs.append(cv2.flip(imgs[0], 1))
 
             for img in imgs:
-                tmp_name = get_random_file_name(extension=self._img_ext)
+                tmp_name = utils.get_random_file_name(extension=self._img_ext)
                 cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img)
 
                 for r_mat in rot_mats:
-                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
                     rotated = cv2.warpAffine(img, r_mat, (self._sample_sz, self._sample_sz))
                     cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
 
                     resized = cv2.pyrUp(cv2.pyrDown(rotated))
-                    tmp_name = get_random_file_name(extension=self._img_ext)
+                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
                     cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), resized)
 
 
     def _create_negative_samples(self, bboxes):
 
-        check_dir(self._neg_out_dir)
+        utils.check_dir(self._neg_out_dir)
 
         img_res = cv2.pyrDown(cv2.pyrDown(self._image))
         boxes_res = [b.resize(1/4) for b in bboxes]
@@ -208,7 +200,7 @@ class DatasetCreator:
             br = prob_b.br
 
             croped = img_res[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
-            tmp_name = get_random_file_name(extension=self._img_ext)
+            tmp_name = utils.get_random_file_name(extension=self._img_ext)
             cv2.imwrite("{}/{}".format(self._neg_out_dir, tmp_name), croped)
 
 
@@ -246,16 +238,12 @@ if __name__ == "__main__":
     ap.add_argument("-o", "--output", required=False, \
             help="The folder where the positive and negative samples will be stored")
 
-    ap.add_argument("-ss", "--sample_size", required=False, type=int, \
-            help="The size of the resulting samples")
-
     args = vars(ap.parse_args())
 
     i_name = args["input"]
     o_name = "samples"
     i_ext = "png"
     o_ext = "png"
-    s_sz = 64
 
     if args["input_extension"]:
         i_ext = args["input_extension"]
@@ -265,9 +253,6 @@ if __name__ == "__main__":
 
     if args["output"]:
         o_name = args["output"]
-
-    if args["sample_size"]:
-        s_sz = args["sample_size"]
 
     template = "{}/*.{}".format(i_name, i_ext)
     print(template)
@@ -280,8 +265,7 @@ if __name__ == "__main__":
     for i, f in enumerate(files):
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
-        creator = DatasetCreator(image, sample_size=s_sz, img_ext=o_ext, \
-            output_folder=o_name)
+        creator = ImageMarker(image, img_ext=o_ext, output_folder=o_name)
 
         if creator.should_quit:
             print("Terminating...")
