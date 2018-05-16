@@ -25,7 +25,6 @@ class DatasetCreator:
         self._image = img
 
         self._pos_out_dir = "{}/positives".format(output_folder)
-        self._neg_out_dir = "{}/negatives".format(output_folder)
 
         self._img_ext = img_ext
 
@@ -36,7 +35,7 @@ class DatasetCreator:
         self._figure, self._axis = plt.subplots(1)
 
         self._keyset = {"quit": "q", "undo": "u", "skip": "s", "help": "h", \
-                "process_all": "a", "process_positives": "p", "process_negatives": "n"}
+                "process_positives": "p"}
         self._modifiers = {"shift", "control"}
 
         self._should_quit = False
@@ -94,16 +93,8 @@ class DatasetCreator:
 
 
     def _keypress(self, event):
-        if event.key == self._keyset["process_all"]:
-            self._create_dataset(True, True)
-            plt.close()
-
-        elif event.key == self._keyset["process_positives"]:
-            self._create_dataset(True, False)
-            plt.close()
-
-        elif event.key == self._keyset["process_negatives"]:
-            self._create_dataset(False, True)
+        if event.key == self._keyset["process_positives"]:
+            self._create_dataset()
             plt.close()
 
         elif event.key == self._keyset["quit"]:
@@ -119,9 +110,7 @@ class DatasetCreator:
         elif event.key == self._keyset["help"]:
             print("Commands:")
             print("\th -- show help message.")
-            print("\ta -- process positive and negative samples.")
             print("\tp -- process positive samples.")
-            print("\tn -- process negative samples.")
             print("\ts -- skip the image processing without terminating the program.")
             print("\tu -- undo last selection.")
             print("\tq -- terminate the program.")
@@ -138,19 +127,11 @@ class DatasetCreator:
         plt.show()
 
 
-    def _create_dataset(self, gen_pos, gen_neg):
+    def _create_dataset(self):
 
         bounds = [(obj.get_bbox().bounds) for obj in self._patches]
         bboxes = [geo.BBox((x, y), (x+width, y+height)) \
                 for (x, y, width, height) in bounds]
-
-        if gen_pos:
-            self._create_positive_samples(bboxes)
-        if gen_neg:
-            self._create_negative_samples(bboxes)
-
-
-    def _create_positive_samples(self, bboxes):
 
         utils.check_dir(self._pos_out_dir)
 
@@ -166,59 +147,17 @@ class DatasetCreator:
             p1 = box.tl
             p2 = box.br
 
-            imgs = []
             croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
-            imgs.append(cv2.resize(croped, (self._sample_sz, self._sample_sz), \
-                    interpolation=cv2.INTER_AREA))
-            imgs.append(cv2.flip(imgs[0], 1))
+            croped = cv2.resize(croped, (self._sample_sz, self._sample_sz), \
+                    interpolation=cv2.INTER_AREA)
 
-            for img in imgs:
-                tmp_name = utils.get_random_file_name(extension=self._img_ext)
-                cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img)
-
-                for r_mat in rot_mats:
-                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
-                    rotated = cv2.warpAffine(img, r_mat, (self._sample_sz, self._sample_sz))
-                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
-
-                    resized = cv2.pyrUp(cv2.pyrDown(rotated))
-                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
-                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), resized)
-
-
-    def _create_negative_samples(self, bboxes):
-
-        utils.check_dir(self._neg_out_dir)
-
-        img_res = cv2.pyrDown(cv2.pyrDown(self._image))
-        boxes_res = [b.resize(1/4) for b in bboxes]
-
-        for prob_b in self._create_boxes(img_res.shape[:2], boxes_res):
-            tl = prob_b.tl
-            br = prob_b.br
-
-            croped = img_res[int(tl.y):int(br.y), int(tl.x):int(br.x), :]
             tmp_name = utils.get_random_file_name(extension=self._img_ext)
-            cv2.imwrite("{}/{}".format(self._neg_out_dir, tmp_name), croped)
+            cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), croped)
 
-
-    def _create_boxes(self, img_dims, pos_boxes):
-        boxes = []
-
-        for y in range(0, img_dims[0]-self._sample_sz, self._sample_sz):
-            for x in range(0, img_dims[1]-self._sample_sz, self._sample_sz):
-                b = geo.BBox((x, y), (x+self._sample_sz, y+self._sample_sz))
-
-                valid = True
-
-                for p_b in pos_boxes:
-                    if p_b.intersect(b):
-                        valid = False
-
-                if valid is True:
-                    boxes.append(b)
-
-        return boxes
+            for r_mat in rot_mats:
+                tmp_name = utils.get_random_file_name(extension=self._img_ext)
+                rotated = cv2.warpAffine(croped, r_mat, (self._sample_sz, self._sample_sz))
+                cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
 
 
 if __name__ == "__main__":
