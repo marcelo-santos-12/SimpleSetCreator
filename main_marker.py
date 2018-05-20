@@ -32,16 +32,14 @@ def create_lists(bounds):
     return x1s, y1s, x2s, y2s
 
 
-class ImageMarker:
+class ImageMarker(object):
 
-    def __init__(self, img, img_dir, img_name, output_folder="."):
+    def __init__(self, img):
 
         self._image = img
 
-        self._img_dir = "{}/{}".format(output_folder, img_dir)
-        self._img_name = img_name
-
         self._patches = []
+        self._boxes = []
 
         self._figure, self._axis = plt.subplots(1)
 
@@ -64,6 +62,11 @@ class ImageMarker:
     @property
     def should_quit(self):
         return self._should_quit
+
+
+    @property
+    def boxes(self):
+        return self._boxes
 
 
     def _undo(self):
@@ -105,7 +108,7 @@ class ImageMarker:
 
     def _keypress(self, event):
         if event.key == self._keyset["process"]:
-            self._create_csv()
+            self._process_boxes()
             plt.close()
 
         elif event.key == self._keyset["quit"]:
@@ -138,25 +141,15 @@ class ImageMarker:
         plt.show()
 
 
-    def _create_csv(self):
+    def _process_boxes(self):
 
         if not self._patches:
             return
 
-        bounds = [(obj.get_bbox().bounds) for obj in self._patches]
-
-        x1s, y1s, x2s, y2s = create_lists(bounds)
-
-        raw_data = {"x_1": x1s, "y_1": y1s, "x_2": x2s, "y_2": y2s}
-        df = pd.DataFrame(raw_data, columns=["x_1", "y_1", "x_2", "y_2", ])
-
-        utils.check_dir(self._img_dir)
-
-        ou_file = "{}/{}.csv".format(self._img_dir, self._img_name)
-        df.to_csv(ou_file, index=False)
+        self._boxes = [(obj.get_bbox().bounds) for obj in self._patches]
 
 
-if __name__ == "__main__":
+def main():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("-i", "--input", required=True, \
@@ -177,9 +170,6 @@ if __name__ == "__main__":
     if args["input_extension"]:
         i_ext = args["input_extension"]
 
-    if args["output_extension"]:
-        o_ext = args["output_extension"]
-
     if args["output"]:
         o_name = args["output"]
 
@@ -195,10 +185,23 @@ if __name__ == "__main__":
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
         splited_filename = f.split("/")
-        i_dir, i_nam = splited_filename[-2], splited_filename[-1].split(".")[0]
-        creator = ImageMarker(image, img_dir=i_dir, img_name=i_nam, \
-                output_folder=o_name)
+        img_dir, img_nam = splited_filename[-2], splited_filename[-1].split(".")[0]
+        creator = ImageMarker(image)
 
         if creator.should_quit:
             print("Terminating...")
             break
+
+        x1s, y1s, x2s, y2s = create_lists(creator.boxes)
+
+        raw_data = {"x_1": x1s, "y_1": y1s, "x_2": x2s, "y_2": y2s}
+        df = pd.DataFrame(raw_data, columns=["x_1", "y_1", "x_2", "y_2", ])
+
+        utils.check_dir(o_name)
+
+        ou_file = "{}/{}_{}.csv".format(o_name, img_dir, img_nam)
+        df.to_csv(ou_file, index=False)
+
+
+if __name__ == "__main__":
+    main()
