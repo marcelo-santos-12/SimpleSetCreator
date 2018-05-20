@@ -173,8 +173,7 @@ def main():
     if args["output"]:
         o_name = args["output"]
 
-    template = "{}/*.{}".format(i_name, i_ext)
-    print(template)
+    template = os.path.join(i_name, "*.{}".format(i_ext))
 
     files = sorted(glob.glob(template), key=os.path.getmtime)
     n_files = len(files)
@@ -184,8 +183,9 @@ def main():
     for i, f in enumerate(files):
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
-        splited_filename = f.split("/")
-        img_dir, img_nam = splited_filename[-2], splited_filename[-1].split(".")[0]
+        img_dir, img_nam = os.path.split(f)
+        _, img_dir = os.path.split(img_dir)
+        img_nam, _ = os.path.splitext(img_nam)
         creator = ImageMarker(image)
 
         if creator.should_quit:
@@ -199,7 +199,8 @@ def main():
 
         utils.check_dir(o_name)
 
-        ou_file = "{}/{}_{}.csv".format(o_name, img_dir, img_nam)
+        ou_file = os.path.join(o_name, "{}_{}.csv".format(img_dir, img_nam))
+        print(ou_file)
         df.to_csv(ou_file, index=False)
 
 
