@@ -194,6 +194,9 @@ def main():
 
         x1s, y1s, x2s, y2s = create_lists(creator.boxes)
 
+        if not x1s:
+            continue
+
         raw_data = {"x_1": x1s, "y_1": y1s, "x_2": x2s, "y_2": y2s}
         df = pd.DataFrame(raw_data, columns=["x_1", "y_1", "x_2", "y_2", ])
 
