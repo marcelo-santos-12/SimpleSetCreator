@@ -24,7 +24,7 @@ class DatasetCreator:
 
         self._image = img
 
-        self._pos_out_dir = "{}/positives".format(output_folder)
+        self._pos_out_dir = output_folder
 
         self._img_ext = img_ext
 
