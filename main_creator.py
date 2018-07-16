@@ -166,9 +166,6 @@ if __name__ == "__main__":
     ap.add_argument("-i", "--input", required=True, \
             help="Path to the directory of images")
 
-    ap.add_argument("-ie", "--input_extension", required=False, \
-            help="The extension type of the input images")
-
     ap.add_argument("-oe", "--output_extension", required=False, \
             help="The extension type of the output images")
 
@@ -182,12 +179,8 @@ if __name__ == "__main__":
 
     i_name = args["input"]
     o_name = "samples"
-    i_ext = "png"
     o_ext = "png"
     s_sz = 64
-
-    if args["input_extension"]:
-        i_ext = args["input_extension"]
 
     if args["output_extension"]:
         o_ext = args["output_extension"]
@@ -198,10 +191,14 @@ if __name__ == "__main__":
     if args["sample_size"]:
         s_sz = args["sample_size"]
 
-    template = "{}/*.{}".format(i_name, i_ext)
-    print(template)
+    i_extensions = ('jpg', 'jpeg', 'png', 'bmp', 'tiff')
+    template = i_name + "/*.{}"
 
-    files = sorted(glob.glob(template), key=os.path.getmtime)
+    files = []
+    for ext in i_extensions:
+        files += glob.glob(template.format(ext))
+
+    files = sorted(files, key=os.path.getmtime)
     n_files = len(files)
 
     plt.rcParams["keymap.save"] = ""
