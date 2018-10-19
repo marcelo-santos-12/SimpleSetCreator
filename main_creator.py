@@ -6,9 +6,11 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+from os.path import splitext, basename
 import argparse
 import glob
 import cv2
+import numpy as np
 
 import matplotlib.pyplot as plt
 
@@ -145,6 +147,8 @@ class DatasetCreator:
                 (self._sample_sz // 2, self._sample_sz // 2), 140, 1.0))
         rot_mats.append(cv2.getRotationMatrix2D( \
                 (self._sample_sz // 2, self._sample_sz // 2), 210, 1.0))
+        rot_mats.append(cv2.getRotationMatrix2D( \
+                (self._sample_sz // 2, self._sample_sz // 2), 280, 1.0))
 
         for box in bboxes:
             p1 = box.tl
@@ -156,12 +160,26 @@ class DatasetCreator:
 
             tmp_name = utils.get_random_file_name(extension=self._img_ext)
             cv2.imwrite("{}/{}".format(self._pos_out_dir_origin, tmp_name), croped)
+            list_gamma = [0.35, 0.75,  1.15, 1.55]
 
             for r_mat in rot_mats:
                 tmp_name = utils.get_random_file_name(extension=self._img_ext)
                 rotated = cv2.warpAffine(croped, r_mat, (self._sample_sz, self._sample_sz))
-                cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), rotated)
+                    
+                for gamma in list_gamma:
+                    img_gama = adjust_gamma(rotated, gamma=gamma)
+                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img_gama)
 
+
+def adjust_gamma(image, gamma):
+	# build a lookup table mapping the pixel values [0, 255] to
+	# their adjusted gamma values
+	invGamma = 1.0 / gamma
+	table = np.array([((i / 255.0) ** invGamma) * 255
+		for i in np.arange(0, 256)]).astype("uint8")
+ 
+	# apply gamma correction using the lookup table
+	return cv2.LUT(image, table)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -207,7 +225,7 @@ if __name__ == "__main__":
     for ext in i_extensions:
         files += glob.glob(template.format(ext))
 
-    files = sorted(files, key=os.path.getmtime)
+    files = sorted(files, key=lambda f: int(splitext(basename(f))[0][5:]))
     n_files = len(files)
 
     plt.rcParams["keymap.save"] = ""
