@@ -22,13 +22,11 @@ import utils
 
 class DatasetCreator:
 
-    def __init__(self, img, sample_size=64, img_ext="png", output_folder=".", output_folder_origin="."):
+    def __init__(self, img, sample_size=64, img_ext="png", output_folder="."):
 
         self._image = img
 
         self._pos_out_dir = output_folder
-
-        self._pos_out_dir_origin = output_folder_origin
 
         self._img_ext = img_ext
 
@@ -138,37 +136,23 @@ class DatasetCreator:
                 for (x, y, width, height) in bounds]
 
         utils.check_dir(self._pos_out_dir)
-        utils.check_dir(self._pos_out_dir_origin)
-
-        rot_mats = []
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 70, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 140, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 210, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 280, 1.0))
 
         for box in bboxes:
             p1 = box.tl
             p2 = box.br
 
             croped = self._image[int(p1.y):int(p2.y), int(p1.x):int(p2.x), :]
-            croped = cv2.resize(croped, (self._sample_sz, self._sample_sz), \
+            croped = cv2.resize(croped, (self._sample_sz/2, self._sample_sz), \
                     interpolation=cv2.INTER_AREA)
 
             tmp_name = utils.get_random_file_name(extension=self._img_ext)
-            cv2.imwrite("{}/{}".format(self._pos_out_dir_origin, tmp_name), croped)
+            cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), croped)
             list_gamma = [0.35, 0.75,  1.15, 1.55]
-
-            for r_mat in rot_mats:
-                tmp_name = utils.get_random_file_name(extension=self._img_ext)
-                rotated = cv2.warpAffine(croped, r_mat, (self._sample_sz, self._sample_sz))
                     
-                for gamma in list_gamma:
-                    img_gama = adjust_gamma(rotated, gamma=gamma)
-                    cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img_gama)
+            for gamma in list_gamma:
+                img_gama = adjust_gamma(croped, gamma=gamma)
+                new_tmp_name = "gamma_0" + str(gamma) + tmp_name
+                cv2.imwrite("{}/{}".format(self._pos_out_dir, new_tmp_name), img_gama)
 
 
 def adjust_gamma(image, gamma):
@@ -184,7 +168,7 @@ def adjust_gamma(image, gamma):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("-i", "--input", required=True, \
+    ap.add_argument("-i", "--input", required=False, \
             help="Path to the directory of images")
 
     ap.add_argument("-oe", "--output_extension", required=False, \
@@ -196,12 +180,14 @@ if __name__ == "__main__":
     ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
-    ap.add_argument("-or", "--output_origin", required=True, \
-            help="The folder where the positive and negative samples will be stored")
+
 
     args = vars(ap.parse_args())
 
-    i_name = args["input"]
+    i_name = "."
+    if args["input"]:
+        i_name = args["input"]
+
     o_name = "samples"
     o_ext = "png"
     s_sz = 64
@@ -215,8 +201,6 @@ if __name__ == "__main__":
 
     if args["sample_size"]:
         s_sz = args["sample_size"]
-    if args["output_origin"]:
-        o_name_origin = args["output_origin"]
 
     i_extensions = ('jpg', 'jpeg', 'png', 'bmp', 'tiff')
     template = i_name + "/*.{}"
@@ -234,7 +218,7 @@ if __name__ == "__main__":
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
         creator = DatasetCreator(image, sample_size=s_sz, img_ext=o_ext, \
-            output_folder=o_name, output_folder_origin=o_name_origin)
+            output_folder=o_name)
 
         if creator.should_quit:
             print("Terminating...")
