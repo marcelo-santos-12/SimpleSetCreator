@@ -20,11 +20,13 @@ import utils
 
 class DatasetCreator:
 
-    def __init__(self, img, sample_size=64, img_ext="png", output_folder="."):
+    def __init__(self, img, sample_size=64, img_ext="png", output_folder=".", output_folder_origin="."):
 
         self._image = img
 
         self._pos_out_dir = output_folder
+
+        self._pos_out_dir_origin = output_folder_origin
 
         self._img_ext = img_ext
 
@@ -134,14 +136,15 @@ class DatasetCreator:
                 for (x, y, width, height) in bounds]
 
         utils.check_dir(self._pos_out_dir)
+        utils.check_dir(self._pos_out_dir_origin)
 
         rot_mats = []
         rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 90, 1.0))
+                (self._sample_sz // 2, self._sample_sz // 2), 70, 1.0))
         rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 180, 1.0))
+                (self._sample_sz // 2, self._sample_sz // 2), 140, 1.0))
         rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 270, 1.0))
+                (self._sample_sz // 2, self._sample_sz // 2), 210, 1.0))
 
         for box in bboxes:
             p1 = box.tl
@@ -152,7 +155,7 @@ class DatasetCreator:
                     interpolation=cv2.INTER_AREA)
 
             tmp_name = utils.get_random_file_name(extension=self._img_ext)
-            cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), croped)
+            cv2.imwrite("{}/{}".format(self._pos_out_dir_origin, tmp_name), croped)
 
             for r_mat in rot_mats:
                 tmp_name = utils.get_random_file_name(extension=self._img_ext)
@@ -175,12 +178,16 @@ if __name__ == "__main__":
     ap.add_argument("-ss", "--sample_size", required=False, type=int, \
             help="The size of the resulting samples")
 
+    ap.add_argument("-or", "--output_origin", required=True, \
+            help="The folder where the positive and negative samples will be stored")
+
     args = vars(ap.parse_args())
 
     i_name = args["input"]
     o_name = "samples"
     o_ext = "png"
     s_sz = 64
+    o_name_origin = "."
 
     if args["output_extension"]:
         o_ext = args["output_extension"]
@@ -190,6 +197,8 @@ if __name__ == "__main__":
 
     if args["sample_size"]:
         s_sz = args["sample_size"]
+    if args["output_origin"]:
+        o_name_origin = args["output_origin"]
 
     i_extensions = ('jpg', 'jpeg', 'png', 'bmp', 'tiff')
     template = i_name + "/*.{}"
@@ -207,7 +216,7 @@ if __name__ == "__main__":
         print("Processing file: {} ({}/{})".format(f, i+1, n_files))
         image = cv2.imread(f)
         creator = DatasetCreator(image, sample_size=s_sz, img_ext=o_ext, \
-            output_folder=o_name)
+            output_folder=o_name, output_folder_origin=o_name_origin)
 
         if creator.should_quit:
             print("Terminating...")
