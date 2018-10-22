@@ -39,7 +39,7 @@ class DatasetCreator:
         self._figure, self._axis = plt.subplots(1)
 
         self._keyset = {"quit": "q", "undo": "u", "skip": "s", "help": "h", \
-                "process_positives": "p"}
+                "process_positives": "k"}
         self._modifiers = {"shift", "control"}
 
         self._should_quit = False
@@ -141,14 +141,10 @@ class DatasetCreator:
         utils.check_dir(self._pos_out_dir_origin)
 
         rot_mats = []
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 70, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 140, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 210, 1.0))
-        rot_mats.append(cv2.getRotationMatrix2D( \
-                (self._sample_sz // 2, self._sample_sz // 2), 280, 1.0))
+        
+        for i in np.arange(10):
+            rot_mats.append(cv2.getRotationMatrix2D( \
+                    (self._sample_sz // 2, self._sample_sz // 2), i*36, 1.0))
 
         for box in bboxes:
             p1 = box.tl
@@ -160,13 +156,13 @@ class DatasetCreator:
 
             tmp_name = utils.get_random_file_name(extension=self._img_ext)
             cv2.imwrite("{}/{}".format(self._pos_out_dir_origin, tmp_name), croped)
-            list_gamma = [0.35, 0.75,  1.15, 1.55]
+            list_gamma = [0.35, 0.65, 0.8, 0.95, 1.1, 1.25, 1.4, 1.55] #8 correcoes gama
 
             for r_mat in rot_mats:
-                tmp_name = utils.get_random_file_name(extension=self._img_ext)
                 rotated = cv2.warpAffine(croped, r_mat, (self._sample_sz, self._sample_sz))
                     
                 for gamma in list_gamma:
+                    tmp_name = utils.get_random_file_name(extension=self._img_ext)
                     img_gama = adjust_gamma(rotated, gamma=gamma)
                     cv2.imwrite("{}/{}".format(self._pos_out_dir, tmp_name), img_gama)
 
@@ -197,7 +193,7 @@ if __name__ == "__main__":
             help="The size of the resulting samples")
 
     ap.add_argument("-or", "--output_origin", required=True, \
-            help="The folder where the positive and negative samples will be stored")
+            help="The folder where the original samples will be stored")
 
     args = vars(ap.parse_args())
 
